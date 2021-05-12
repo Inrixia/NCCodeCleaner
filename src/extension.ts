@@ -19,13 +19,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 		let cleanText = textEditor.document.getText()
 		.replace(new RegExp('N\\d+\\s', "g"), "")
-		.replace(new RegExp(`A0\\.`, "g"), "")
-		.replace(new RegExp(` G48 `, "g"), "")
+		.replace(new RegExp(`A0\\.\\s?`, "g"), "")
+		.replace(new RegExp(`G49`, "g"), "")
 		.replace(new RegExp(`G0 Z25.${nl}M5${nl}G91 G28 Z0. M9${nl}${nl}M01`, "g"), "G0 Z200. M9\nM5\nM01\n")
 		.replace(new RegExp(`M5${nl}G91 G28 Z0. M9${nl}${nl}M01`, "g"), 			"G0 Z200. M9\nM5\nM01\n")
-		.replace(new RegExp(`G0 Z25.${nl}M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.${nl}M30${nl}%`, "g"), 	"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
-		.replace(new RegExp(`M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.${nl}M30${nl}%`, "g"), 				"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
-		.replace(new RegExp(`M5${nl}G91 G28 Z0.${nl}G28 X0. Y0.${nl}M30${nl}%`, "g"), 					"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%");
+		.replace(new RegExp(`G0 Z25.${nl}M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 	"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
+		.replace(new RegExp(`M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 				"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
+		.replace(new RegExp(`M5${nl}G91 G28 Z0.${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 					"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%");
 		
 		let match: null | RegExpMatchArray = [];
 		while ((match = toolMatch.exec(cleanText)) !== null) {
