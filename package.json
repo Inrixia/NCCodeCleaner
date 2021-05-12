@@ -1,11 +1,12 @@
 {
   "name": "nccodecleaner",
   "displayName": "NCCodeCleaner",
-  "description": "",
+  "description": "VSCode Extension for cleaning up .NC files",
   "version": "1.0.0",
   "engines": {
     "vscode": "^1.56.0"
   },
+  "publisher": "Inrixia",
   "categories": [
     "Other"
   ],
@@ -38,5 +39,15 @@
     "vscode-test": "^1.5.0",
     "webpack": "^5.19.0",
     "webpack-cli": "^4.4.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Inrixia/NCCodeCleaner.git"
+  },
+  "author": "Inrixia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Inrixia/NCCodeCleaner/issues"
+  },
+  "homepage": "https://github.com/Inrixia/NCCodeCleaner#readme"
 }
