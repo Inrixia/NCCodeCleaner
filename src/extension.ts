@@ -9,6 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const textRange = textEditor.document.validateRange(new vscode.Range(0, 0, textEditor.document.lineCount, 99999999999999999999999));
 
+		// Replace/remove the static matches
 		let cleanText = textEditor.document.getText()
 		.replace(/\r\n/g, "\n")
 		.replace(new RegExp('N\\d+\\s', "g"), "")
@@ -22,30 +23,49 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const toolMatch = new RegExp(`\\( T\\d+ \\| .* \\|`, "g");
 
+		// Postfix the names of each tool using the tools at the top of the file
 		let match: null | RegExpMatchArray = null;
+
+		// For each tool found at the top of the top of the file.
 		while ((match = toolMatch.exec(cleanText)) !== null) {
 			if (match.index === toolMatch.lastIndex) {toolMatch.lastIndex++;}
+
+			// Replace every instance of `TID M6` with `TID M6 (NAME)`
 			const toolID = match[0].slice(2, match[0].indexOf(" |"));
 			const toolName = match[0].slice(match[0].indexOf("| ")+2, match[0].lastIndexOf(" |"));
 			cleanText = cleanText.replace(new RegExp(`${toolID} M6\n`, "g"), `${toolID} M6 (${toolName})\n`);
 		}
 
-		const toolLookaheadMatch = new RegExp(`(T\\d+ M6 .*\n)(?!(T\\d+))`, "g");
-		const nextToolMatch = new RegExp(`T\\d+ M6`, "g");
+		// For each tool change lookup what the next tool to be used is and add it below.
+		const toolLookaheadMatch = new RegExp(`(T\\d+ M6 .*\n)(?!(T\\d+))`, "g"); // Regex for finding tools that have not got a tool load set below it
+		const nextToolMatch = new RegExp(`T\\d+ M6`, "g"); // Regex to find the next tool that is used
 
 		// Add next tools
 		match = null;
-		let firstTool = undefined;
+		// Store the first tool used here so it can be appended to the end of the file
+		let firstTool: undefined | string = undefined;
+
+		// For each tool that doesnt have a lookahead set
 		while ((match = toolLookaheadMatch.exec(cleanText)) !== null) {
 			if (firstTool === undefined) {
+				// If this is the first tool store it
 				firstTool = (match[0].match(/T\d+/g)||"")[0];
 			}
 			if (match.index === toolLookaheadMatch.lastIndex) {toolLookaheadMatch.lastIndex++;}
+
+			// Set the nextToolMatch lastIndex to the current tools lastIndex so it searches for tools after the current one. Thus finding the next tool
 			nextToolMatch.lastIndex = toolLookaheadMatch.lastIndex;
-			const replaceRegex = new RegExp(`${match[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!(T\d+))`, "g");
 			let nextTool: RegExpMatchArray | string[] | null = nextToolMatch.exec(cleanText);
-			if (nextTool === null) {nextTool = [`${firstTool} M6`];}
+
+			if (nextTool === null) {
+				// If nextTool is null then we are at the end of the file, set the nextTool to be equal to the firstTool
+				nextTool = [`${firstTool} M6`];
+			}
+
+			// The new tool string is the old one with a newline behind it plus the lookahead tool
 			const newStr = `\n${match[0]}${nextTool[0].replace(" M6", "")}\n`;
+			// Find the instance of this tool which does not have a lookahead set (to account for multiple uses of the same tool)
+			const replaceRegex = new RegExp(`${match[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!(T\d+))`, "g");
 			cleanText = cleanText.replace(replaceRegex, newStr);
 		}
 
