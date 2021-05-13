@@ -3,38 +3,53 @@ import * as vscode from 'vscode';
 // Called once when extension is activated
 export function activate(context: vscode.ExtensionContext) {
 	const cleanEditor = ((textEditor: vscode.TextEditor | undefined) => {
-		const startTime = Date.now();
 		if (textEditor === undefined) {return;};
 		const fileNameLength = textEditor.document.fileName.length;
 		if (textEditor.document.fileName.slice(fileNameLength-3, fileNameLength) !== ".NC") {return;}
-		// const replacerIndexs: Array<RegExpExecArray | null> = [];
-		// for (const replacer of replacers) {
-		// 	replacerIndexs.push(replacer[0].exec(documentText));
-		// }
+
 		const textRange = textEditor.document.validateRange(new vscode.Range(0, 0, textEditor.document.lineCount, 99999999999999999999999));
 
-		const nl = `(\r\n?|\n)`;
-
-		const toolMatch = new RegExp(`\\( T\\d+ \\| .* \\|`, "g");
-
 		let cleanText = textEditor.document.getText()
+		.replace(/\r\n/g, "\n")
 		.replace(new RegExp('N\\d+\\s', "g"), "")
 		.replace(new RegExp(`A0\\.\\s?`, "g"), "")
 		.replace(new RegExp(`G49`, "g"), "")
-		.replace(new RegExp(`G0 Z25.${nl}M5${nl}G91 G28 Z0. M9${nl}${nl}M01`, "g"), "G0 Z200. M9\nM5\nM01\n")
-		.replace(new RegExp(`M5${nl}G91 G28 Z0. M9${nl}${nl}M01`, "g"), 			"G0 Z200. M9\nM5\nM01\n")
-		.replace(new RegExp(`G0 Z25.${nl}M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 	"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
-		.replace(new RegExp(`M5${nl}G91 G28 Z0. M9${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 				"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
-		.replace(new RegExp(`M5${nl}G91 G28 Z0.${nl}G28 X0. Y0.\\s?${nl}M30${nl}%`, "g"), 					"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%");
-		
-		let match: null | RegExpMatchArray = [];
+		.replace(new RegExp(`G0 Z25.\nM5\nG91 G28 Z0. M9\n\nM01`, "g"), "G0 Z200. M9\nM5\nM01\n")
+		.replace(new RegExp(`M5\nG91 G28 Z0. M9\n\nM01`, "g"), 			"G0 Z200. M9\nM5\nM01\n")
+		.replace(new RegExp(`G0 Z25.\nM5\nG91 G28 Z0. M9\nG28 X0. Y0.\\s?\nM30\n%`, "g"), 	"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
+		.replace(new RegExp(`M5\nG91 G28 Z0. M9\nG28 X0. Y0.\\s?\nM30\n%`, "g"), 				"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%")
+		.replace(new RegExp(`M5\nG91 G28 Z0.\nG28 X0. Y0.\\s?\nM30\n%`, "g"), 					"G0 Z200. M9\nM5\nG91 G28 Y0.\nM30\n%");
+
+		const toolMatch = new RegExp(`\\( T\\d+ \\| .* \\|`, "g");
+
+		let match: null | RegExpMatchArray = null;
 		while ((match = toolMatch.exec(cleanText)) !== null) {
+			if (match.index === toolMatch.lastIndex) {toolMatch.lastIndex++;}
 			const toolID = match[0].slice(2, match[0].indexOf(" |"));
 			const toolName = match[0].slice(match[0].indexOf("| ")+2, match[0].lastIndexOf(" |"));
-			cleanText = cleanText.replace(new RegExp(`${toolID} M6${nl}`, "g"), `${toolID} M6 (${toolName})\n`);
+			cleanText = cleanText.replace(new RegExp(`${toolID} M6\n`, "g"), `${toolID} M6 (${toolName})\n`);
 		}
 
-		if (cleanText !== textEditor.document.getText()) {
+		const toolLookaheadMatch = new RegExp(`(T\\d+ M6 .*\n)(?!(T\\d+))`, "g");
+		const nextToolMatch = new RegExp(`T\\d+ M6`, "g");
+
+		// Add next tools
+		match = null;
+		let firstTool = undefined;
+		while ((match = toolLookaheadMatch.exec(cleanText)) !== null) {
+			if (firstTool === undefined) {
+				firstTool = (match[0].match(/T\d+/g)||"")[0];
+			}
+			if (match.index === toolLookaheadMatch.lastIndex) {toolLookaheadMatch.lastIndex++;}
+			nextToolMatch.lastIndex = toolLookaheadMatch.lastIndex;
+			const replaceRegex = new RegExp(`${match[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!(T\d+))`, "g");
+			let nextTool: RegExpMatchArray | string[] | null = nextToolMatch.exec(cleanText);
+			if (nextTool === null) {nextTool = [`${firstTool} M6`];}
+			const newStr = `\n${match[0]}${nextTool[0].replace(" M6", "")}\n`;
+			cleanText = cleanText.replace(replaceRegex, newStr);
+		}
+
+		if (cleanText !== textEditor.document.getText().replace(/\r\n/g, "\n")) {
 			textEditor.edit(editor => {
 				editor.replace(
 					textRange, 
